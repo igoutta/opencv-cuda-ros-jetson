@@ -319,7 +319,7 @@ visual_check () {
 	fi
 }
 	
-	main () {
+main () {
 	# Iterate through command line inputs
 	while [ "$1" != "" ]; do
 	case $1 in
@@ -370,3 +370,5 @@ visual_check () {
 	fi
 	visual_check
 }
+
+main $@
