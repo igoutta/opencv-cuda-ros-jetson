@@ -116,7 +116,7 @@ install_dependencies () {
 	    libxvidcore-dev \
 	    libx264-dev \
 	    zlib1g-dev \
-		pkg-config
+	 	pkg-config
 	
 	# Python 2.7
 	# sudo apt-get install -y python-dev  python-numpy  python-py  python-pytest
@@ -125,7 +125,7 @@ install_dependencies () {
 	# GStreamer support
 	sudo apt install -y libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev 
 	# QT5 support
-	sudo apt install -y qt5-default
+	sudo apt install -y qtbase5-dev qtchooser qt5-qmake qtbase5-dev-tools
  
  	# In order to support OpenGL, we need a little magic to help
 	# https://devtalk.nvidia.com/default/topic/1007290/jetson-tx2/building-opencv-with-opengl-support-/post/5141945/#5141945
@@ -136,8 +136,8 @@ install_dependencies () {
 download_sources() {
     cd $OPENCV_SOURCE_DIR
     echo "Getting version '$OPENCV_VERSION' of OpenCV"
-    git clone --depth 1 -b "$OPENCV_VERSION" https://github.com/opencv/opencv.git
-    git clone --depth 1 -b "$OPENCV_VERSION" https://github.com/opencv/opencv_contrib.git
+    git clone --quiet --depth 1 -b "$OPENCV_VERSION" https://github.com/opencv/opencv.git
+    git clone --quiet --depth 1 -b "$OPENCV_VERSION" https://github.com/opencv/opencv_contrib.git
     # checking the correct TAG
     echo "Downloaded: $(cd ./opencv/ | git log | grep --colour=auto -o 4.5.4)"
 
