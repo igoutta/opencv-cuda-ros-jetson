@@ -24,7 +24,9 @@ OpenCV will be installed in the `/usr/local` directory as default, all files wil
 <blockquote>usage: ./buildOpenCV.sh [[-s sourcedir ] | [-h]]<br>
 &nbsp;&nbsp;&nbsp;&nbsp; -s | --sourcedir   Directory in which to place the opencv sources (default $HOME ; this is usually ~/)<br>
 &nbsp;&nbsp;&nbsp;&nbsp; -i | --installdir  Directory in which to install opencv libraries (default /usr/local)<br>
-&nbsp;&nbsp;&nbsp;&nbsp; --no_package       Do not package OpenCV as .deb file (default is true)<br>
+&nbsp;&nbsp;&nbsp;&nbsp; -r | --remove      Ask to remove previous installations from OpenCV of your system alongside all files related.<br>
+&nbsp;&nbsp;&nbsp;&nbsp; -t | --test        Download examples and test the OpenCV after building.<br>
+&nbsp;&nbsp;&nbsp;&nbsp; -p | --package     Package OpenCV as .deb file to install in other JETSON equipments.<br>
 &nbsp;&nbsp;&nbsp;&nbsp; -h | --help        Print help</blockquote>
 
 ## Build Parameters
