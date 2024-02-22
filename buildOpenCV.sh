@@ -62,15 +62,15 @@ remove () {
 	echo "Do you want to remove OpenCV completely from your system? "
 	read -rp "Y/N " yn
         case ${yn} in
-	    [Yy]* ) sudo find / -name ' *opencv* ' -exec rm -i '{}' \; ;
-     		    CHECK_PKG="$(pkg-config --modversion opencv)" ;
-		    if [[ "$CHECK_PKG" != ^[3-5]* ]]
-      		    then
-			echo "Purge Completed."
-		    fi
-     		    break;;
-            [Nn]* ) exit ;;
-            * ) echo "Please answer yes or no." ;;
+			[Yy]* ) sudo find / -name ' *opencv* ' -exec rm -i '{}' \; ;
+				CHECK_PKG="$(pkg-config --modversion opencv)" ;
+				if [[ "$CHECK_PKG" != ^[3-5]* ]]
+				then
+					echo "Purge Completed."
+				fi
+				break;;
+			[Nn]* ) exit ;;
+			* ) echo "Please answer yes or no." ;;
         esac
     done
 }
@@ -136,16 +136,16 @@ install_dependencies () {
 download_sources() {
     cd $OPENCV_SOURCE_DIR
     echo "Getting version '$OPENCV_VERSION' of OpenCV"
-    git clone --quiet --depth 1 -b "$OPENCV_VERSION" https://github.com/opencv/opencv.git
-    git clone --quiet --depth 1 -b "$OPENCV_VERSION" https://github.com/opencv/opencv_contrib.git
-    # checking the correct TAG
-    echo "Downloaded: $(cd ./opencv/ | git log | grep --colour=auto -o 4.5.4)"
+    git clone -n --depth 1 -b "$OPENCV_VERSION" https://github.com/opencv/opencv.git
+    git clone -n --depth 1 -b "$OPENCV_VERSION" https://github.com/opencv/opencv_contrib.git
 
     if [ "$TEST_OPENCV" -eq 1 ] ; then
-	echo "Installing opencv_extras for the test data"
-  	cd $OPENCV_SOURCE_DIR
-   	git clone --depth 1 -b "$OPENCV_VERSION" https://github.com/opencv/opencv_extra.git
+		echo "Getting opencv_extras for the test data"
+  		cd $OPENCV_SOURCE_DIR
+   		git clone -n --depth 1 -b "$OPENCV_VERSION" https://github.com/opencv/opencv_extra.git
     fi
+	# checking the correct TAG
+    echo "Downloaded: $(cd ./opencv/; git log | grep -o 4.5.4)"
 }
 
 configure () {
@@ -155,51 +155,40 @@ configure () {
 	
 	echo $PWD
 	CMAKEFLAGS="
- 		-D CMAKE_BUILD_TYPE=RELEASE
+		-D CMAKE_BUILD_TYPE=RELEASE
 		-D CMAKE_INSTALL_PREFIX=${INSTALL_DIR}
 		-D OPENCV_EXTRA_MODULES_PATH=${OPENCV_SOURCE_DIR}/opencv_contrib/modules
 		-D OPENCV_GENERATE_PKGCONFIG=YES
 		-D OPENCV_ENABLE_NONFREE=ON
-		
-		-D ENABLE_NEON=ON
-		-D WITH_EIGEN=ON
-		-D EIGEN_INCLUDE_PATH=/usr/include/eigen3
-		 
+			
 		-D WITH_OPENCL=OFF
 		-D WITH_OPENGL=ON
 		
-	    -D WITH_CUDA=ON
-	    -D CUDA_ARCH_BIN=${CUDA_ARCH_BIN}
-	    -D CUDA_ARCH_PTX=${PTX}
-	    -D WITH_CUDNN=ON
-	 	-D CUDNN_VERSION=${CUDNN}
-	  	-D WITH_CUBLAS=ON
-      	-D OPENCV_DNN_CUDA=ON
-      	-D ENABLE_FAST_MATH=ON
-      	-D CUDA_FAST_MATH=ON
-		-D WITH_TBB=ON
-  		-D BUILD_TBB=ON
-		-D WITH_OPENMP=ON
-  		-D WITH_PROTOBUF=ON
-	  	-D BUILD_PROTOBUF=ON
-	      
-	   	-D WITH_V4L=ON
-	 	-D WITH_LIBV4L=ON
-   		-D WITH_FFMPEG=ON
-	 	-D WITH_GSTREAMER=ON
+		-D WITH_CUDA=ON
+		-D CUDA_ARCH_BIN=${CUDA_ARCH_BIN}
+		-D CUDA_ARCH_PTX=${PTX}
+		-D WITH_CUDNN=ON
+		-D CUDNN_VERSION=${CUDNN}
+		-D WITH_CUBLAS=ON
+		-D OPENCV_DNN_CUDA=ON
+		-D ENABLE_FAST_MATH=ON
+		-D CUDA_FAST_MATH=ON
+
+		-D WITH_V4L=ON
+		-D WITH_LIBV4L=ON
+		-D WITH_FFMPEG=ON
+		-D WITH_GSTREAMER=ON
 		-D WITH_GSTREAMER_0_10=OFF
-	 
-	    -D WITH_QT=ON
-	    -D BUILD_opencv_python3=ON
-	    -D BUILD_opencv_python2=OFF
-	    -D BUILD_JAVA=OFF
-	      	
-	    -D CPU_BASELINE=VFPV3"
+		
+		-D WITH_QT=ON
+		-D BUILD_opencv_python3=ON
+		-D BUILD_opencv_python2=OFF
+		-D BUILD_JAVA=OFF"
 	
 	if [ "$PACKAGE_OPENCV" -eq 1 ] ; then
 		CMAKEFLAGS="
-	    ${CMAKEFLAGS}
-	    -D CPACK_BINARY_DEB=ON"
+		${CMAKEFLAGS}
+		-D CPACK_BINARY_DEB=ON"
 	fi
 	
 	if [ "$TEST_OPENCV" -eq 1 ] ; then
@@ -227,45 +216,42 @@ configure () {
 	time cmake ${CMAKEFLAGS} .. 2>&1 | tee -a configure.log
 
 	if [ $? -eq 0 ] ; then
-	  echo "CMake configuration make successful"
+		echo "CMake configuration make successful"
 	else
-	  echo "CMake issues " >&2
-	  echo "Please check the configuration being used"
-	  exit 1
+		echo "CMake issues " >&2
+		echo "Please check the configuration being used"
+		exit 1
 	fi
 }
 
-build () {
+build_install () {
 	cd $OPENCV_SOURCE_DIR/opencv/build
 	# Consider the MAXN performance mode if using a barrel jack on the Nano
 	time make -j$NUM_JOBS 2>&1 | tee -a build.log
 	if [ $? -eq 0 ] ; then
-	  echo "OpenCV make successful"
+		echo "OpenCV make successful"
 	else
-	  # Try to make again; Sometimes there are issues with the build
-	  # because of lack of resources or concurrency issues
-	  echo "Make did not build " >&2
-	  echo "Retrying ... "
-	  # Single thread this time
-	  make
-	  if [ $? -eq 0 ] ; then
-	    echo "OpenCV make successful"
-	  else
-	    # Try to make again
-	    echo "Make did not successfully build" >&2
-	    echo "Please fix issues and retry build"
-	    exit 1
-	  fi
+		# Try to make again; Sometimes there are issues with the build
+		# because of lack of resources or concurrency issues
+		echo "Make did not build " >&2
+		echo "Retrying ... "
+		# Single thread this time
+		make
+		if [ $? -eq 0 ] ; then
+			echo "OpenCV make successful"
+		else
+			# Try to make again
+			echo "Make did not successfully build" >&2
+			echo "Please fix issues and retry build"
+			exit 1
+		fi
 	fi
 	
 	if [[ "${TEST_OPENCV}" ]] ; then
 		make test 2>&1 | tee -a test.log
 	fi
-}
 
-install () {
 	echo "Installing ... "
- 	cd $OPENCV_SOURCE_DIR/opencv/build
 	if [[ -w ${PREFIX} ]] ; then
 	    make install 2>&1 | tee -a install.log
 	else
@@ -291,6 +277,7 @@ wrap () {
 	time sudo make package -j$NUM_JOBS
 	if [ $? -eq 0 ] ; then
 		echo "OpenCV make package successful"
+		mv ./_CPACK_Packages/Linux/STGZ/ $HOME/Package_OpenCV_CUDA/
 	else
 		# Try to make again; Sometimes there are issues with the build
 		# because of lack of resources or concurrency issues
@@ -300,6 +287,7 @@ wrap () {
 		sudo make package
 		if [ $? -eq 0 ] ; then
 			echo "OpenCV make package successful"
+			mv ./_CPACK_Packages/Linux/STGZ/ $HOME/Package_OpenCV_CUDA/
 		else
 			echo "Make package did not successfully build" >&2
 			echo "Please fix issues and retry build"
@@ -322,7 +310,7 @@ visual_check () {
 main () {
 	# Iterate through command line inputs
 	while [ "$1" != "" ]; do
-	case $1 in
+		case $1 in
 			-s | --sourcedir )      shift
 									OPENCV_SOURCE_DIR=$1
 									;;
@@ -357,14 +345,13 @@ main () {
 	fi
 	
 	if [ "$TEST_OPENCV" -eq 1 ] ; then
-	 echo " - Also Download Tests from opencv_extras"
+		echo " - Test with opencv_extras"
 	fi
 	
 	install_dependencies
 	download_sources
 	configure
-	build
-	install
+	build_install
 	if [ "$PACKAGE_OPENCV" -eq 1 ] ; then
 		wrap
 	fi
