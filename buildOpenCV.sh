@@ -136,16 +136,16 @@ install_dependencies () {
 download_sources() {
     cd $OPENCV_SOURCE_DIR
     echo "Getting version '$OPENCV_VERSION' of OpenCV"
-    git clone -n --depth 1 -b "$OPENCV_VERSION" https://github.com/opencv/opencv.git
-    git clone -n --depth 1 -b "$OPENCV_VERSION" https://github.com/opencv/opencv_contrib.git
+    git clone -c advice.detachedHead=false --depth 1 -b "$OPENCV_VERSION" https://github.com/opencv/opencv.git
+    git clone -c advice.detachedHead=false --depth 1 -b "$OPENCV_VERSION" https://github.com/opencv/opencv_contrib.git
 
     if [ "$TEST_OPENCV" -eq 1 ] ; then
 		echo "Getting opencv_extras for the test data"
   		cd $OPENCV_SOURCE_DIR
-   		git clone -n --depth 1 -b "$OPENCV_VERSION" https://github.com/opencv/opencv_extra.git
+   		git clone -c advice.detachedHead=false --depth 1 -b "$OPENCV_VERSION" https://github.com/opencv/opencv_extra.git
     fi
 	# checking the correct TAG
-    echo "Downloaded: $(cd ./opencv/; git log | grep -o 4.5.4)"
+    echo "Downloaded: $(cd ./opencv/; git log | grep -o ${OPENCV_VERSION})"
 }
 
 configure () {
@@ -311,17 +311,20 @@ main () {
 	# Iterate through command line inputs
 	while [ "$1" != "" ]; do
 		case $1 in
-			-s | --sourcedir )      shift
+			-v | --version )		 shift 
+									OPENCV_VERSION=$1
+									;;
+			-s | --sourcedir ) 		shift
 									OPENCV_SOURCE_DIR=$1
 									;;
-			-i | --installdir )     shift
+			-i | --installdir ) 		shift
 									INSTALL_DIR=$1
 									;;
 			-r | --remove )         remove
 									;;
-			-t | --test )           TEST_OPENCV=1
+			-t | --test ) 				TEST_OPENCV=1
 									;;
-			-p | --package )        PACKAGE_OPENCV=1
+			-p | --package ) 		PACKAGE_OPENCV=1
 									;;
 			-h | --help )           usage
 									exit
@@ -336,8 +339,8 @@ main () {
 	# Print out the current configuration
 	echo "Build configuration: "
 	echo " - NVIDIA Jetson AGX Orin"
-	echo " - OpenCV binaries will be installed in: $INSTALL_DIR"
-	echo " - OpenCV source code is currently located at: $OPENCV_SOURCE_DIR"
+	echo " - OpenCV $OPENCV_VERSION binaries will be installed in: $INSTALL_DIR"
+	echo " - OpenCV $OPENCV_VERSION source code is currently located at: $OPENCV_SOURCE_DIR"
 	if [ "$PACKAGE_OPENCV" -eq 0 ] ; then
 	   echo " - NOT Packaging OpenCV"
 	else
