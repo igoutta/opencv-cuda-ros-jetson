@@ -1,25 +1,26 @@
 #!/bin/bash
 # License: MIT. See license file in root directory
 # Copyright(c) JetsonHacks (2017-2019)
+# Updated by Gustavo Alvardo (2024).
 trap cleanup ERR
-INSTALL_DIR=/usr/local
 # Version
-OPENCV_VERSION=4.5.4
+OPENCV_VERSION=4.9.0
 # Jetson AGX Orin
 CUDA_ARCH_BIN=8.7
 PTX="sm_87"
 CUDNN='8.9'
-# Download the opencv_extras repository
-# If you are installing the opencv testdata, i.e.
-# OPENCV_TEST_DATA_PATH=../opencv_extra/testdata
-# Make sure that you set this to 1
+# Install directory
+INSTALL_DIR=/usr/local
+# Source code directory
+OPENCV_SOURCE_DIR=/tmp/build_opencv
+# Current location where the script is running
+WHEREAMI=$PWD
+# Download the opencv_extras repository for testing
 # Value should be 1 or 0
 TEST_OPENCV=0
-# Value in order to packaging OpenCV
+# Packaging OpenCV
+# Value should be 1 or 0
 PACKAGE_OPENCV=0
-# Source code directory will be /tmp/build_opencv
-OPENCV_SOURCE_DIR=$HOME
-WHEREAMI=$PWD
 # NUM_JOBS is the number of jobs to run simultaneously when using make
 # Alognside better board detection. 
 # If it has 6 or more cpus, it probably has a ton of ram too
@@ -34,55 +35,43 @@ fi
 
 cleanup () {
 # https://stackoverflow.com/questions/226703/how-do-i-prompt-for-yes-no-cancel-input-in-a-linux-shell-script
-    while true ; do
-        echo "Do you wish to remove temporary build files in /tmp/build_opencv ? "
-        if ! [[ "$1" = "--test-warning" ]] ; then
-            echo "(Doing so may make running tests on the build later impossible)"
-        fi
-        read -rp "Y/N " yn
-        case ${yn} in
-            [Yy]* ) sudo rm -rf /tmp/build_opencv ; break;;
-            [Nn]* ) exit ;;
-            * ) echo "Please answer yes or no." ;;
-        esac
-    done
+	while true ; do
+		echo "Do you wish to remove temporary build files in $OPENCV_SOURCE_DIR ? "
+		if ! [[ "$1" = "--test-warning" ]]; then
+			echo "(Doing so may make running tests on the build later impossible)"
+		fi
+		read -rp "Y/N " yn
+		case ${yn} in
+			[Yy]* ) sudo rm -rf "$OPENCV_SOURCE_DIR" ; break;;
+			[Nn]* ) exit ;;
+			* ) echo "Please answer yes or no." ;;
+		esac
+	done
 }
 
 setup () {
-    if [[ -d "/tmp/build_opencv" ]] ; then
-        echo "It appears an existing build exists in /tmp/build_opencv"
-        cleanup
-    fi
-    mkdir -p /tmp/build_opencv
-    OPENCV_SOURCE_DIR=/tmp/build_opencv
+	if [[ -d ${OPENCV_SOURCE_DIR} ]]; then
+		echo "It appears an existing build exists in $OPENCV_SOURCE_DIR"
+		cleanup
+	fi
+	mkdir -p "$OPENCV_SOURCE_DIR"
 }
 
 remove () {
-    while true ; do
+	while true ; do
 	echo "Do you want to remove OpenCV completely from your system? "
 	read -rp "Y/N " yn
-        case ${yn} in
+		case ${yn} in
 			[Yy]* ) sudo find / -name ' *opencv* ' -exec rm -i '{}' \; ;
-				CHECK_PKG="$(pkg-config --modversion opencv)" ;
-				if [[ "$CHECK_PKG" != ^[3-5]* ]]
-				then
-					echo "Purge Completed."
-				fi
-				break;;
+					CHECK_PKG="$(pkg-config --modversion opencv)";
+					if [[ "$CHECK_PKG" != ^[3-5]* ]]; then
+						echo "Purge Completed."
+					fi
+					break;;
 			[Nn]* ) exit ;;
 			* ) echo "Please answer yes or no." ;;
-        esac
-    done
-}
-
-usage () {
-    echo "usage: ./buildOpenCV.sh [[-s sourcedir ] | [-h]]"
-    echo "-s | --sourcedir   Directory in which to place the opencv sources (default $HOME)"
-    echo "-i | --installdir  Directory in which to install opencv libraries (default /usr/local)"
-    echo "-r | --remove      Ask to remove previous installations from OpenCV of your system alongside all files related."
-    echo "-t | --test        Download examples and test the OpenCV after building."
-    echo "-p | --package     Package OpenCV as .deb file to install in other JETSON equipments."
-    echo "-h | --help        This message"
+		esac
+	done
 }
 
 install_dependencies () {
@@ -94,29 +83,30 @@ install_dependencies () {
 	sudo apt dist-upgrade -y --autoremove
 	
 	# Download dependencies for the desired configuration
-	cd $HOME
+	cd "$HOME" || return
 	sudo apt install -y \
-		software-properties-common \
-	    build-essential \
-	    cmake \
-	    libavcodec-dev \
-	    libavformat-dev \
-	    libavutil-dev \
-	    libeigen3-dev \
-	    libglew-dev \
-	    libgtk2.0-dev \
-	    libgtk-3-dev \
-	    libjpeg-dev \
-	    libpng-dev \
-	    libpostproc-dev \
-	    libswscale-dev \
-	    libtbb-dev \
-	    libtiff5-dev \
-	    libv4l-dev \
-	    libxvidcore-dev \
-	    libx264-dev \
-	    zlib1g-dev \
-	 	pkg-config
+			software-properties-common \
+			build-essential \
+			cmake \
+			libavcodec-dev \
+			libavformat-dev \
+			libavutil-dev \
+			libeigen3-dev \
+			libglew-dev \
+			libgtk2.0-dev \
+			libgtk-3-dev \
+			libjpeg-dev \
+			libpng-dev \
+			libtiff5-dev \
+			libpostproc-dev \
+			libswscale-dev \
+			libswresample-dev \
+			libtbb-dev \
+			libv4l-dev \
+			libxvidcore-dev \
+			libx264-dev \
+			zlib1g-dev \
+			pkg-config
 	
 	# Python 2.7
 	# sudo apt-get install -y python-dev  python-numpy  python-py  python-pytest
@@ -129,31 +119,32 @@ install_dependencies () {
  
  	# In order to support OpenGL, we need a little magic to help
 	# https://devtalk.nvidia.com/default/topic/1007290/jetson-tx2/building-opencv-with-opengl-support-/post/5141945/#5141945
-	cd /usr/local/cuda/include
-	sudo patch -N cuda_gl_interop.h $WHEREAMI'/patches/OpenGLHeader.patch' 
+	cd /usr/local/cuda/include || exit
+	sudo patch -N cuda_gl_interop.h "$WHEREAMI"/patches/OpenGLHeader.patch
 }
 
 download_sources() {
-    cd $OPENCV_SOURCE_DIR
-    echo "Getting version '$OPENCV_VERSION' of OpenCV"
+    cd "$OPENCV_SOURCE_DIR" || setup
+    echo "Getting OpenCV version: $OPENCV_VERSION"
     git clone -c advice.detachedHead=false --depth 1 -b "$OPENCV_VERSION" https://github.com/opencv/opencv.git
     git clone -c advice.detachedHead=false --depth 1 -b "$OPENCV_VERSION" https://github.com/opencv/opencv_contrib.git
-
     if [ "$TEST_OPENCV" -eq 1 ] ; then
 		echo "Getting opencv_extras for the test data"
-  		cd $OPENCV_SOURCE_DIR
    		git clone -c advice.detachedHead=false --depth 1 -b "$OPENCV_VERSION" https://github.com/opencv/opencv_extra.git
     fi
 	# checking the correct TAG
-    echo "Downloaded: $(cd ./opencv/; git log | grep -o ${OPENCV_VERSION})"
+	CHECK_SOURCE="$(cd ./opencv/ || return; git log | grep -o "$OPENCV_VERSION")"
+	if [ "$CHECK_SOURCE" != "" ]; then
+		echo "Checking the downloaded version: Correct."
+	else
+		echo "Checking the downloaded version: Wrong."
+		exit 1
+	fi
 }
 
 configure () {
-	# Fix for Eigen
-	cd $OPENCV_SOURCE_DIR/opencv
-	sed -i 's/include <Eigen\/Core>/include <eigen3\/Eigen\/Core>/g' modules/core/include/opencv2/core/private.hpp
-	
-	echo $PWD
+	cd "$OPENCV_SOURCE_DIR"/opencv || exit
+	echo "$WHEREAMI"
 	CMAKEFLAGS="
 		-D CMAKE_BUILD_TYPE=RELEASE
 		-D CMAKE_INSTALL_PREFIX=${INSTALL_DIR}
@@ -173,6 +164,8 @@ configure () {
 		-D OPENCV_DNN_CUDA=ON
 		-D ENABLE_FAST_MATH=ON
 		-D CUDA_FAST_MATH=ON
+		-D WITH_TBB=ON
+		-D BUILD_TBB=ON
 
 		-D WITH_V4L=ON
 		-D WITH_LIBV4L=ON
@@ -211,11 +204,11 @@ configure () {
 	fi
 	
 	# Create the build directory and start cmake
-	mkdir -p $OPENCV_SOURCE_DIR/opencv/build
-	cd $OPENCV_SOURCE_DIR/opencv/build
-	time cmake ${CMAKEFLAGS} .. 2>&1 | tee -a configure.log
+	mkdir -p "$OPENCV_SOURCE_DIR"/opencv/build
+	cd "$OPENCV_SOURCE_DIR"/opencv/build || exit
+	CONFIG="$(time cmake "${CMAKEFLAGS}" .. 2>&1 | tee -a configure.log)"
 
-	if [ $? -eq 0 ] ; then
+	if $CONFIG; then
 		echo "CMake configuration make successful"
 	else
 		echo "CMake issues " >&2
@@ -225,9 +218,9 @@ configure () {
 }
 
 build_install () {
-	cd $OPENCV_SOURCE_DIR/opencv/build
+	cd "$OPENCV_SOURCE_DIR"/opencv/build || exit
 	# Consider the MAXN performance mode if using a barrel jack on the Nano
-	time make -j$NUM_JOBS 2>&1 | tee -a build.log
+	time make -j"$NUM_JOBS" 2>&1 | tee -a build.log
 	if [ $? -eq 0 ] ; then
 		echo "OpenCV make successful"
 	else
@@ -247,110 +240,123 @@ build_install () {
 		fi
 	fi
 	
-	if [[ "${TEST_OPENCV}" ]] ; then
-		make test 2>&1 | tee -a test.log
+	if [ "$TEST_OPENCV" -eq 1 ] ; then
+		time make test 2>&1 | tee -a test.log
 	fi
 
 	echo "Installing ... "
-	if [[ -w ${PREFIX} ]] ; then
-	    make install 2>&1 | tee -a install.log
-	else
-	    sudo make install 2>&1 | tee -a install.log
-	fi
-	
 	sudo ldconfig -v
+	if [[ -w ${INSTALL_DIR} ]] ; then
+	    time make install 2>&1 | tee -a install.log
+	else
+	    time sudo make install 2>&1 | tee -a install.log
+	fi
 	
 	if [ $? -eq 0 ] ; then
 	   echo "OpenCV installed in: $INSTALL_DIR"
 	else
-	   echo "There was an issue with the final installation"
+	   echo "There was an issue with the final installation."
 	   exit 1
 	fi
 }
 
 wrap () {
+	# We assure to be in the build directory ...
+	cd "$OPENCV_SOURCE_DIR"/opencv/build || exit
 	# If PACKAGE_OPENCV is on, pack 'er up and get ready to go!
-	# We should still be in the build directory ...
-	cd $OPENCV_SOURCE_DIR/opencv/build
 	echo "Starting Packaging"
 	sudo ldconfig -v
-	time sudo make package -j$NUM_JOBS
+	time sudo make package -j"$NUM_JOBS" 2>&1 | tee -a package.log
 	if [ $? -eq 0 ] ; then
 		echo "OpenCV make package successful"
-		mv ./_CPACK_Packages/Linux/STGZ/ $HOME/Package_OpenCV_CUDA/
 	else
 		# Try to make again; Sometimes there are issues with the build
 		# because of lack of resources or concurrency issues
 		echo "Make package did not build " >&2
 		echo "Retrying ... "
 		# Single thread this time
-		sudo make package
+		time sudo make package 2>&1 | tee -a package.log
 		if [ $? -eq 0 ] ; then
 			echo "OpenCV make package successful"
-			mv ./_CPACK_Packages/Linux/STGZ/ $HOME/Package_OpenCV_CUDA/
 		else
 			echo "Make package did not successfully build" >&2
 			echo "Please fix issues and retry build"
 			exit 1
 		fi
 	fi
+	mv ./_CPACK_Packages/Linux/STGZ/ "$HOME"/Package_OpenCV_CUDA/
 }
 
 visual_check () {
-	# check installation
-	IMPORT_CHECK="$(python -c "import cv2 ; print(cv2.__version__)")"
-	if [[ "$IMPORT_CHECK" != *$OPENCV_VERSION* ]]; then
+	# check installation with Python 3
+	IMPORT_CHECK="$(python -c "import cv2; print(cv2.__version__)")"
+	if [ "$IMPORT_CHECK" != "$OPENCV_VERSION" ]; then
 		echo "There was an error loading OpenCV in the Python sanity test."
 		echo "The loaded version does not match the version built here."
 		echo "Please check the installation."
 		echo "The first check should be the PYTHONPATH environment variable."
 	fi
 }
-	
+
+usage () {
+	echo "usage: ./buildOpenCV.sh [[-s sourcedir ] | [-h]]"
+	echo "-v | --version	Change the version of OpenCV to install. (default: 4.9.0)"
+	echo "-s | --sourcedir	Directory in which to place the opencv sources (default: /tmp/build_opencv)"
+	echo "-i | --installdir	Directory in which to install opencv libraries (default: /usr/local)"
+	echo "-t | --test		Download examples and test the OpenCV after building."
+	echo "-p | --package	Package OpenCV as .deb file to install in other JETSON equipments."
+	echo "-r | --remove		In case you want to completely remove installed OpenCV of your system."
+	echo "-h | --help		This message"
+}
+
 main () {
 	# Iterate through command line inputs
 	while [ "$1" != "" ]; do
 		case $1 in
-			-v | --version )		 shift 
-									OPENCV_VERSION=$1
-									;;
-			-s | --sourcedir ) 		shift
-									OPENCV_SOURCE_DIR=$1
-									;;
-			-i | --installdir ) 		shift
-									INSTALL_DIR=$1
-									;;
-			-r | --remove )         remove
-									;;
-			-t | --test ) 				TEST_OPENCV=1
-									;;
-			-p | --package ) 		PACKAGE_OPENCV=1
-									;;
-			-h | --help )           usage
-									exit
-									;;
-			* )                     usage
-									exit 1
+			-v | --version )	shift 
+								OPENCV_VERSION=$1
+								;;
+			-s | --sourcedir )	shift
+								OPENCV_SOURCE_DIR=$1
+								;;
+			-i | --installdir )	shift
+								INSTALL_DIR=$1
+								;;
+			-t | --test )		TEST_OPENCV=1
+								;;
+			-p | --package )	PACKAGE_OPENCV=1
+								;;
+			-r | --remove )		remove
+								;;
+			-h | --help )		usage
+								exit
+								;;
+			* )					usage
+								exit 1
 		esac
 		shift
 	done
+
 	setup
-	
+
 	# Print out the current configuration
 	echo "Build configuration: "
 	echo " - NVIDIA Jetson AGX Orin"
-	echo " - OpenCV $OPENCV_VERSION binaries will be installed in: $INSTALL_DIR"
-	echo " - OpenCV $OPENCV_VERSION source code is currently located at: $OPENCV_SOURCE_DIR"
+	echo " - OpenCV version: $OPENCV_VERSION" 
+	echo " - Binaries will be installed in: $INSTALL_DIR"
+	echo " - Source code will be located at: $OPENCV_SOURCE_DIR"
 	if [ "$PACKAGE_OPENCV" -eq 0 ] ; then
-	   echo " - NOT Packaging OpenCV"
+		echo " - NOT Packaging OpenCV"
 	else
-	   echo " - Packaging OpenCV"
+		echo " - Packaging OpenCV"
 	fi
-	
-	if [ "$TEST_OPENCV" -eq 1 ] ; then
-		echo " - Test with opencv_extras"
+
+	if [ "$TEST_OPENCV" -eq 0 ] ; then
+		echo " - NOT Testing OpenCV Build"
+	else
+		echo " - Testing OpenCV with testdata from opencv_extras"
 	fi
-	
+
 	install_dependencies
 	download_sources
 	configure
@@ -361,4 +367,4 @@ main () {
 	visual_check
 }
 
-main $@
+main "$@"
