@@ -2,7 +2,7 @@
 # License: MIT. See license file in root directory
 # Copyright(c) JetsonHacks (2017-2019)
 # Updated by Gustavo Alvardo (2024).
-trap cleanup ERR
+trap cleanup --test-warning ERR
 # Version
 OPENCV_VERSION=4.9.0
 # Jetson AGX Orin
@@ -52,7 +52,7 @@ cleanup () {
 setup () {
 	if [[ -d ${OPENCV_SOURCE_DIR} ]]; then
 		echo "It appears an existing build exists in $OPENCV_SOURCE_DIR"
-		cleanup
+		cleanup "@$"
 	fi
 	mkdir -p "$OPENCV_SOURCE_DIR"
 }
@@ -124,7 +124,7 @@ install_dependencies () {
 }
 
 download_sources() {
-    cd "$OPENCV_SOURCE_DIR" || setup
+    cd "$OPENCV_SOURCE_DIR" || exit
     echo "Getting OpenCV version: $OPENCV_VERSION"
     git clone -c advice.detachedHead=false --depth 1 -b "$OPENCV_VERSION" https://github.com/opencv/opencv.git
     git clone -c advice.detachedHead=false --depth 1 -b "$OPENCV_VERSION" https://github.com/opencv/opencv_contrib.git
