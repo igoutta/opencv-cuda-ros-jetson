@@ -1,12 +1,13 @@
 # Build OpenCV with CUDA for Jetson
 
-Script to build OpenCV 4.9.0 with CUDA and CUDNN support on the NVIDIA Jetson AGX Orin
+Script to build OpenCV with CUDA and CUDNN support on NVIDIA Jetson boards running JetPack 5. It builds OpenCV 4.9.0 by default, and any other release tag (e.g. 4.10.0, 4.11.0, 4.12.0) can be chosen with `-v`.
 
 ***Note:** The script does not check to see which version of L4T is running before building, understand the script may only work with the stated versions.*
 
 ## Usage
 
-> usage: `./buildOpenCV.sh [-v version] [-s sourcedir] [-i installdir] [-t] [-p] [-r] [-h]`  
+> usage: `./buildOpenCV.sh [-b board] [-v version] [-s sourcedir] [-i installdir] [-t] [-p] [-r] [-h]`  
+>>>-b | --board&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&thinsp;Board to build for: `xavier` or `orin` (default: orin)  
 >>>-v | --version&ensp;&ensp;&ensp;&ensp;&thinsp;&thinsp;Change the version of OpenCV to install. (default: 4.9.0)  
 >>>-s | --sourcedir&ensp;&thinsp;&ensp;&thinsp;Directory to place the opencv sources (default: /tmp/build_opencv)  
 >>>-i | --installdir&ensp;&ensp;&ensp;&ensp;Directory to install opencv libraries (default: /usr/local)  
@@ -54,7 +55,7 @@ The advantage of packaging is that you can use the resulting package file to ins
 
 Building for:
 
-- Jetson AGX Orin
-- JetPack 5.1.2 (compute capability 8.7, CUDNN 8.9)
-- OpenCV 4.9.0
+- Jetson AGX Orin / Orin NX / Orin Nano (`-b orin`, compute capability 8.7) or AGX Xavier / Xavier NX (`-b xavier`, compute capability 7.2)
+- JetPack 5.1.x (Ubuntu 20.04, CUDA 11.4, CUDNN 8.6)
+- OpenCV 4.9.0 by default, newer releases with `-v`
 - Packaging Option
