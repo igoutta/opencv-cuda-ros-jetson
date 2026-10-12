@@ -4,6 +4,8 @@
   https://gist.github.com/peter-moran/742998d893cd013edf6d0c86cc86ff7f
 */
 
+#include <iostream>
+#include <string>
 #include <opencv2/opencv.hpp>
 
 std::string get_tegra_pipeline(int width, int height, int fps) {
@@ -31,11 +33,19 @@ int main() {
 
     // View video
     cv::Mat frame;
-    while (1) {
+    while (true) {
         cap >> frame;  // Get a new frame from camera
+        if (frame.empty()) {
+            std::cout << "No frame received
+";
+            break;
+        }
 
         // Display frame
-        imshow("Display window", frame);
-        cv::waitKey(1); //needed to show frame
+        cv::imshow("Display window", frame);
+        if (cv::waitKey(1) == 27) {  // needed to show frame; ESC to quit
+            break;
+        }
     }
+    return 0;
 }

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # MIT License
 
 # Copyright (c) 2017-18 Jetsonhacks
@@ -37,12 +37,12 @@ def parse_cli_args():
 # On versions of L4T previous to L4T 28.1, flip-method=2
 # Use the Jetson onboard camera
 def open_onboard_camera():
-    return cv2.VideoCapture("nvarguscamerasrc ! video/x-raw(memory:NVMM), width=(int)640, height=(int)480, format=(string)NV12, framerate=(fraction)30/1 ! nvvidconv ! video/x-raw, format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink")
+    return cv2.VideoCapture("nvarguscamerasrc ! video/x-raw(memory:NVMM), width=(int)640, height=(int)480, format=(string)NV12, framerate=(fraction)30/1 ! nvvidconv ! video/x-raw, format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink", cv2.CAP_GSTREAMER)
 
 # Open an external usb camera /dev/videoX
 def open_camera_device(device_number):
     return cv2.VideoCapture(device_number)
-   
+
 
 def read_cam(video_capture):
     if video_capture.isOpened():
@@ -61,14 +61,16 @@ def read_cam(video_capture):
             if cv2.getWindowProperty(windowName, 0) < 0: # Check to see if the user closed the window
                 # This will fail if the user closed the window; Nasties get printed to the console
                 break;
-            ret_val, frame = video_capture.read();
+            ret_val, frame = video_capture.read()
+            if not ret_val: # Camera disconnected or the stream ended
+                break
             hsv=cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             blur=cv2.GaussianBlur(hsv,(7,7),1.5)
             edges=cv2.Canny(blur,0,edgeThreshold)
             if showWindow == 3:  # Need to show the 4 stages
                 # Composite the 2x2 window
                 # Feed from the camera is RGB, the others gray
-                # To composite, convert gray images to color. 
+                # To composite, convert gray images to color.
                 # All images must be of the same type to display in a window
                 frameRs=cv2.resize(frame, (640,360))
                 hsvRs=cv2.resize(hsv,(640,360))
@@ -79,7 +81,7 @@ def read_cam(video_capture):
                 vidBuf = np.concatenate( (vidBuf, vidBuf1), axis=0)
 
             if showWindow==1: # Show Camera Frame
-                displayBuf = frame 
+                displayBuf = frame
             elif showWindow == 2: # Show Canny Edge Detection
                 displayBuf = edges
             elif showWindow == 3: # Show All Stages
@@ -107,17 +109,17 @@ def read_cam(video_capture):
             elif key==44: # , lower canny edge threshold
                 edgeThreshold=max(0,edgeThreshold-1)
                 print ('Canny Edge Threshold Maximum: ',edgeThreshold)
-            elif key==46: # , raise canny edge threshold
+            elif key==46: # . raise canny edge threshold
                 edgeThreshold=edgeThreshold+1
                 print ('Canny Edge Threshold Maximum: ', edgeThreshold)
             elif key==74: # Toggle fullscreen; This is the F3 key on this particular keyboard
                 # Toggle full screen mode
-                if showFullScreen == False : 
+                if showFullScreen == False :
                     cv2.setWindowProperty(windowName, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
                 else:
-                    cv2.setWindowProperty(windowName, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL) 
+                    cv2.setWindowProperty(windowName, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
                 showFullScreen = not showFullScreen
-              
+
     else:
      print ("camera open failed")
 
