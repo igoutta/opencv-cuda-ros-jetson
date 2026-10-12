@@ -6,7 +6,7 @@ Script to build OpenCV 4.9.0 with CUDA and CUDNN support on the NVIDIA Jetson AG
 
 ## Usage
 
-> usage: `./buildOpenCV.sh [[-s sourcedir ] | [-h]]`  
+> usage: `./buildOpenCV.sh [-v version] [-s sourcedir] [-i installdir] [-t] [-p] [-r] [-h]`  
 >>>-v | --version&ensp;&ensp;&ensp;&ensp;&thinsp;&thinsp;Change the version of OpenCV to install. (default: 4.9.0)  
 >>>-s | --sourcedir&ensp;&thinsp;&ensp;&thinsp;Directory to place the opencv sources (default: /tmp/build_opencv)  
 >>>-i | --installdir&ensp;&ensp;&ensp;&ensp;Directory to install opencv libraries (default: /usr/local)  
@@ -17,13 +17,13 @@ Script to build OpenCV 4.9.0 with CUDA and CUDNN support on the NVIDIA Jetson AG
 
 ## Directories
 
-OpenCV will be installed in the `/usr/local` directory as default, all files will be copied to the following locations:
+OpenCV will be installed in the `/usr/local` directory as default (change it with `-i`), under these subdirectories of the install prefix:
 
-- `/usr/bin` - executable files
-- `/usr/lib/aarch64-linux-gnu` - libraries (.so)
-- `/usr/lib/aarch64-linux-gnu/cmake/opencv4` - cmake package
-- `/usr/include/opencv4` - headers
-- `/usr/share/opencv4` - other files (e.g. trained cascades in XML format)
+- `bin` - executable files
+- `lib` - libraries (.so)
+- `lib/cmake/opencv4` - cmake package
+- `include/opencv4` - headers
+- `share/opencv4` - other files (e.g. trained cascades in XML format)
 
 ## Build Parameters
 
@@ -43,11 +43,18 @@ With `-p`, the build will also create an OpenCV package. The package file will b
 
 The advantage of packaging is that you can use the resulting package file to install this OpenCV build on other machines without having to rebuild. Whether the OpenCV package is built or not is controlled by the CMake directive **CPACK_BINARY_DEB** in the script.
 
+## Project layout
+
+- `buildOpenCV.sh` - the build, install and packaging script
+- `patches/` - patches applied by the script (CUDA OpenGL header fix)
+- `Examples/` - camera and CUDA sample programs to check the build, see [Examples/README.md](Examples/README.md)
+- `.github/` - issue templates
+
 ## Notes
 
 Building for:
 
 - Jetson AGX Orin
-- JetPack 5.1.2 (CUDA 8.7, CUDNN 8.9)
+- JetPack 5.1.2 (compute capability 8.7, CUDNN 8.9)
 - OpenCV 4.9.0
 - Packaging Option

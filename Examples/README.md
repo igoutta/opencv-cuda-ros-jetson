@@ -1,43 +1,52 @@
-There are two example programs here. Both programs require OpenCV to be installed with GStreamer support enabled.
-Both of these examples were last tested with L4T 32.2.1, OpenCV 4.1.1
+# Examples
 
-The first is a simple C++ program to view the onboard camera feed from the Jetson Dev Kit. The examples assume that a RPi V2 CSI camera is attached to the Nano. You may have to change the /dev/video* path for a USB camera.
+There are two example programs here. Both programs require OpenCV to be installed with GStreamer support enabled.
+Both of these examples were originally tested with L4T 32.2.1, OpenCV 4.1.1. `gstreamer_view.cpp` and `cannyDetection.py` need a camera, `cudaTest.py` needs a CUDA-enabled OpenCV build.
+
+The first is a simple C++ program to view the onboard camera feed from the Jetson Dev Kit. The examples assume that a RPi V2 CSI camera is attached to the Jetson. You may have to change the /dev/video* path for a USB camera.
 
 To compile gstreamer_view.cpp:
-<blockquote>
-$ gcc -std=c++11 `pkg-config --cflags opencv` `pkg-config --libs opencv` gstreamer_view.cpp -o gstreamer_view -lstdc++ -lopencv_core -lopencv_highgui -lopencv_videoio</blockquote>
 
-to run the program:
+```sh
+g++ -std=c++11 gstreamer_view.cpp -o gstreamer_view `pkg-config --cflags --libs opencv4`
+```
 
-$ ./gstreamer_view
+to run the program (press ESC to quit):
+
+```sh
+./gstreamer_view
+```
 
 The second is a Python program that reads the onboard camera feed from the Jetson Dev Kit and does Canny Edge Detection.
 
-To run the Canny detection demo (Python 2.7):
+To run the Canny detection demo:
 
-$ python cannyDetection.py
+```sh
+python3 cannyDetection.py
+```
 
-With Python 3:
+With the Canny detection demo, use the comma (,) and period (.) keys to lower and raise the edge detection threshold.
 
-$ python3 cannyDetection.py
+The third is a CUDA sanity test, `cudaTest.py`. It checks that OpenCV was built with CUDA support, uploads an image to the GPU, rotates it there and shows the result:
 
-With the Canny detection demo, use the less than (<) and greater than (>) to adjust the edge detection parameters.
+```sh
+python3 cudaTest.py myimage.jpg
+```
 
 ## Notes
 
 1. The gstreamer_view example is from Peter Moran:
-   https://gist.github.com/peter-moran/742998d893cd013edf6d0c86cc86ff7f
+   <https://gist.github.com/peter-moran/742998d893cd013edf6d0c86cc86ff7f>
    Note that the nvvidconv flip-method was changed to 0. Earlier versions of L4T used a flip method of 2.
 
-2. For the Python examples, you will need to have the appropriate libraries installed. From the buildOpenCV scripts:
+2. For the Python examples, you will need to have the appropriate libraries installed. From the buildOpenCV script:
 
-####     Python 2.7
-    $ sudo apt-get install -y python-dev python-numpy python-py python-pytest
-####     Python 3.6
-    $ sudo apt-get install -y python3-dev python3-numpy python3-py python3-pytest
-
+```sh
+sudo apt install -y python3-dev python3-numpy python3-pytest
+```
 
 ## License
+
 MIT License
 
 Copyright (c) 2017-2019 Jetsonhacks
@@ -59,6 +68,5 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
- 
-gstreamer_view example Copyright (c) 2017 Peter Moran
 
+gstreamer_view example Copyright (c) 2017 Peter Moran
