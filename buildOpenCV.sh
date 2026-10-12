@@ -1,20 +1,22 @@
 #!/bin/bash
 # License: MIT. See license file in root directory
 # Copyright(c) JetsonHacks (2017-2019)
-# Updated by Gustavo Alvardo (2024).
-trap cleanup --test-warning ERR
+# Updated by Gustavo Alvarado (2024).
+# A failed pipeline must fail the step (so the $? checks below are meaningful)
+set -o pipefail
 # Version
 OPENCV_VERSION=4.9.0
 # Jetson AGX Orin
 CUDA_ARCH_BIN=8.7
-PTX="sm_87"
+# Orin is a fixed target, so native SASS (8.7) is enough; PTX only adds build time
+PTX=""
 CUDNN='8.9'
 # Install directory
 INSTALL_DIR=/usr/local
 # Source code directory
 OPENCV_SOURCE_DIR=/tmp/build_opencv
-# Current location where the script is running
-WHEREAMI=$PWD
+# Directory where the script (and its patches/ folder) lives
+WHEREAMI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Download the opencv_extras repository for testing
 # Value should be 1 or 0
 TEST_OPENCV=0
@@ -22,7 +24,7 @@ TEST_OPENCV=0
 # Value should be 1 or 0
 PACKAGE_OPENCV=0
 # NUM_JOBS is the number of jobs to run simultaneously when using make
-# Alognside better board detection. 
+# Alongside better board detection.
 # If it has 6 or more cpus, it probably has a ton of ram too
 CPUS=$(nproc)
 if [[ $CPUS -gt 5 ]]; then
@@ -42,17 +44,27 @@ cleanup () {
 		fi
 		read -rp "Y/N " yn
 		case ${yn} in
-			[Yy]* ) sudo rm -rf "$OPENCV_SOURCE_DIR" ; break;;
-			[Nn]* ) exit ;;
+			[Yy]* ) sudo rm -rf "$OPENCV_SOURCE_DIR" ; return 0;;
+			[Nn]* ) return 1 ;;
 			* ) echo "Please answer yes or no." ;;
 		esac
 	done
 }
 
+# If anything below exits with an error, offer to remove the build files.
+# Installed after setup() so a bad argument can't delete a previous build.
+on_exit () {
+	local rc=$?
+	if [ "$rc" -ne 0 ]; then
+		cleanup --test-warning
+	fi
+	exit "$rc"
+}
+
 setup () {
 	if [[ -d ${OPENCV_SOURCE_DIR} ]]; then
 		echo "It appears an existing build exists in $OPENCV_SOURCE_DIR"
-		cleanup "@$"
+		cleanup || exit 0
 	fi
 	mkdir -p "$OPENCV_SOURCE_DIR"
 }
@@ -62,12 +74,11 @@ remove () {
 	echo "Do you want to remove OpenCV completely from your system? "
 	read -rp "Y/N " yn
 		case ${yn} in
-			[Yy]* ) sudo find / -name ' *opencv* ' -exec rm -i '{}' \; ;
-					CHECK_PKG="$(pkg-config --modversion opencv)";
-					if [[ "$CHECK_PKG" != ^[3-5]* ]]; then
+			[Yy]* ) sudo find / -name '*opencv*' -exec rm -i '{}' \; ;
+					if ! pkg-config --exists opencv opencv4 2>/dev/null; then
 						echo "Purge Completed."
 					fi
-					break;;
+					exit 0;;
 			[Nn]* ) exit ;;
 			* ) echo "Please answer yes or no." ;;
 		esac
@@ -80,7 +91,6 @@ install_dependencies () {
 	echo "Installing build dependencies."
 	sudo apt-add-repository universe
 	sudo apt update -y
-	sudo apt dist-upgrade -y --autoremove
 	
 	# Download dependencies for the desired configuration
 	cd "$HOME" || return
@@ -97,7 +107,7 @@ install_dependencies () {
 			libgtk-3-dev \
 			libjpeg-dev \
 			libpng-dev \
-			libtiff5-dev \
+			libtiff-dev \
 			libpostproc-dev \
 			libswscale-dev \
 			libswresample-dev \
@@ -206,9 +216,9 @@ configure () {
 	# Create the build directory and start cmake
 	mkdir -p "$OPENCV_SOURCE_DIR"/opencv/build
 	cd "$OPENCV_SOURCE_DIR"/opencv/build || exit
-	CONFIG="$(time cmake "${CMAKEFLAGS}" .. 2>&1 | tee -a configure.log)"
-
-	if $CONFIG; then
+	# CMAKEFLAGS must be word-split into separate cmake arguments
+	# shellcheck disable=SC2086
+	if time cmake ${CMAKEFLAGS} .. 2>&1 | tee -a configure.log; then
 		echo "CMake configuration make successful"
 	else
 		echo "CMake issues " >&2
@@ -245,7 +255,6 @@ build_install () {
 	fi
 
 	echo "Installing ... "
-	sudo ldconfig -v
 	if [[ -w ${INSTALL_DIR} ]] ; then
 	    time make install 2>&1 | tee -a install.log
 	else
@@ -253,6 +262,7 @@ build_install () {
 	fi
 	
 	if [ $? -eq 0 ] ; then
+	   sudo ldconfig -v
 	   echo "OpenCV installed in: $INSTALL_DIR"
 	else
 	   echo "There was an issue with the final installation."
@@ -284,12 +294,26 @@ wrap () {
 			exit 1
 		fi
 	fi
-	mv ./_CPACK_Packages/Linux/STGZ/ "$HOME"/Package_OpenCV_CUDA/
+	# CPack leaves the final artifacts (component .deb files and the STGZ .sh
+	# installer) in the build directory; _CPack_Packages is only staging.
+	PACKAGE_DIR="$HOME/Package_OpenCV_CUDA"
+	mkdir -p "$PACKAGE_DIR"
+	shopt -s nullglob
+	PACKAGES=(./OpenCV-*.deb ./OpenCV-*.sh)
+	shopt -u nullglob
+	if [ "${#PACKAGES[@]}" -eq 0 ] ; then
+		echo "No package files were found in $PWD" >&2
+		exit 1
+	fi
+	mv "${PACKAGES[@]}" "$PACKAGE_DIR"/
+	# make package ran as root, so hand the files back to the current user
+	sudo chown -R "$(id -u):$(id -g)" "$PACKAGE_DIR"
+	echo "Packages saved in: $PACKAGE_DIR"
 }
 
 visual_check () {
 	# check installation with Python 3
-	IMPORT_CHECK="$(python -c "import cv2; print(cv2.__version__)")"
+	IMPORT_CHECK="$(python3 -c "import cv2; print(cv2.__version__)")"
 	if [ "$IMPORT_CHECK" != "$OPENCV_VERSION" ]; then
 		echo "There was an error loading OpenCV in the Python sanity test."
 		echo "The loaded version does not match the version built here."
@@ -299,7 +323,7 @@ visual_check () {
 }
 
 usage () {
-	echo "usage: ./buildOpenCV.sh [[-s sourcedir ] | [-h]]"
+	echo "usage: ./buildOpenCV.sh [-v version] [-s sourcedir] [-i installdir] [-t] [-p] [-r] [-h]"
 	echo "-v | --version	Change the version of OpenCV to install. (default: 4.9.0)"
 	echo "-s | --sourcedir	Directory in which to place the opencv sources (default: /tmp/build_opencv)"
 	echo "-i | --installdir	Directory in which to install opencv libraries (default: /usr/local)"
@@ -338,6 +362,7 @@ main () {
 	done
 
 	setup
+	trap on_exit EXIT
 
 	# Print out the current configuration
 	echo "Build configuration: "

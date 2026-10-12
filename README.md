@@ -38,8 +38,8 @@ OpenCV is a very rich environment, with many different options available. Check 
 
 ## Packaging
 
-By default, the build will create a OpenCV package. The package file will be found in:
-> opencv/build/_CPACK_Packages/Linux/STGZ/OpenCV-4.9.0-<*commit*>-aarch64.sh
+With `-p`, the build will also create an OpenCV package. The package file will be found in:
+> ~/Package_OpenCV_CUDA/ (`OpenCV-4.9.0-<*commit*>-*.deb` and the `.sh` installer)
 
 The advantage of packaging is that you can use the resulting package file to install this OpenCV build on other machines without having to rebuild. Whether the OpenCV package is built or not is controlled by the CMake directive **CPACK_BINARY_DEB** in the script.
 
