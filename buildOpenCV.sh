@@ -6,11 +6,14 @@
 set -o pipefail
 # Version
 OPENCV_VERSION=4.9.0
-# Jetson AGX Orin
-CUDA_ARCH_BIN=8.7
-# Orin is a fixed target, so native SASS (8.7) is enough; PTX only adds build time
+# Board to build for (-b | --board): xavier or orin
+BOARD="orin"
+# CUDA compute capability of the board, set by set_board
+CUDA_ARCH_BIN=""
+# Jetsons are fixed targets, so native SASS is enough; PTX only adds build time
 PTX=""
-CUDNN='8.9'
+# cuDNN version shipped with JetPack 5.1.x (JetPack 5.0.2 ships 8.4)
+CUDNN='8.6'
 # Install directory
 INSTALL_DIR=/usr/local
 # Source code directory
@@ -135,18 +138,23 @@ install_dependencies () {
 	sudo patch -N cuda_gl_interop.h "$WHEREAMI"/patches/OpenGLHeader.patch
 }
 
-download_sources() {
-    cd "$OPENCV_SOURCE_DIR" || exit
-    echo "Getting OpenCV version: $OPENCV_VERSION"
-    git clone -c advice.detachedHead=false --depth 1 -b "$OPENCV_VERSION" https://github.com/opencv/opencv.git
-    git clone -c advice.detachedHead=false --depth 1 -b "$OPENCV_VERSION" https://github.com/opencv/opencv_contrib.git
-    if [ "$TEST_OPENCV" -eq 1 ] ; then
+download_sources () {
+	cd "$OPENCV_SOURCE_DIR" || exit
+	echo "Getting OpenCV version: $OPENCV_VERSION"
+	REPOS=(opencv opencv_contrib)
+	if [ "$TEST_OPENCV" -eq 1 ] ; then
 		echo "Getting opencv_extras for the test data"
-   		git clone -c advice.detachedHead=false --depth 1 -b "$OPENCV_VERSION" https://github.com/opencv/opencv_extra.git
-    fi
+		REPOS+=(opencv_extra)
+	fi
+	for repo in "${REPOS[@]}"; do
+		if ! git clone -c advice.detachedHead=false --depth 1 -b "$OPENCV_VERSION" "https://github.com/opencv/$repo.git"; then
+			echo "Could not download $repo $OPENCV_VERSION, check that the version exists." >&2
+			exit 1
+		fi
+	done
 	# checking the correct TAG
-	CHECK_SOURCE="$(cd ./opencv/ || return; git log | grep -o "$OPENCV_VERSION")"
-	if [ "$CHECK_SOURCE" != "" ]; then
+	CHECK_SOURCE="$(git -C opencv describe --tags --exact-match 2>/dev/null)"
+	if [ "$CHECK_SOURCE" = "$OPENCV_VERSION" ]; then
 		echo "Checking the downloaded version: Correct."
 	else
 		echo "Checking the downloaded version: Wrong."
@@ -324,8 +332,20 @@ visual_check () {
 	fi
 }
 
+set_board () {
+	case "$BOARD" in
+		xavier ) BOARD_NAME="NVIDIA Jetson AGX Xavier / Xavier NX"
+			CUDA_ARCH_BIN=7.2 ;;
+		orin )   BOARD_NAME="NVIDIA Jetson AGX Orin / Orin NX / Orin Nano"
+			CUDA_ARCH_BIN=8.7 ;;
+		* )      echo "Unknown board: '$BOARD' (use xavier or orin)" >&2
+			exit 1 ;;
+	esac
+}
+
 usage () {
-	echo "usage: ./buildOpenCV.sh [-v version] [-s sourcedir] [-i installdir] [-t] [-p] [-r] [-h]"
+	echo "usage: ./buildOpenCV.sh [-b board] [-v version] [-s sourcedir] [-i installdir] [-t] [-p] [-r] [-h]"
+	echo "-b | --board	Board to build for: xavier or orin. (default: orin)"
 	echo "-v | --version	Change the version of OpenCV to install. (default: 4.9.0)"
 	echo "-s | --sourcedir	Directory in which to place the opencv sources (default: /tmp/build_opencv)"
 	echo "-i | --installdir	Directory in which to install opencv libraries (default: /usr/local)"
@@ -341,6 +361,9 @@ main () {
 		case $1 in
 			-v | --version )	shift
 								OPENCV_VERSION=$1
+								;;
+			-b | --board )		shift
+								BOARD="${1,,}"
 								;;
 			-s | --sourcedir )	shift
 								OPENCV_SOURCE_DIR=$1
@@ -363,12 +386,13 @@ main () {
 		shift
 	done
 
+	set_board
 	setup
 	trap on_exit EXIT
 
 	# Print out the current configuration
 	echo "Build configuration: "
-	echo " - NVIDIA Jetson AGX Orin"
+	echo " - Board: $BOARD_NAME (CUDA arch $CUDA_ARCH_BIN)"
 	echo " - OpenCV version: $OPENCV_VERSION"
 	echo " - Binaries will be installed in: $INSTALL_DIR"
 	echo " - Source code will be located at: $OPENCV_SOURCE_DIR"
