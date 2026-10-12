@@ -93,7 +93,7 @@ install_dependencies () {
 	sudo apt install -y software-properties-common
 	sudo apt-add-repository -y universe
 	sudo apt update -y
-	
+
 	# Download dependencies for the desired configuration
 	cd "$HOME" || return
 	sudo apt install -y \
@@ -119,16 +119,16 @@ install_dependencies () {
 			libx264-dev \
 			zlib1g-dev \
 			pkg-config
-	
+
 	# Python 2.7
 	# sudo apt-get install -y python-dev  python-numpy  python-py  python-pytest
 	# Python 3.x
 	sudo apt install -y python3-dev python3-numpy python3-pytest
 	# GStreamer support
-	sudo apt install -y libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev 
+	sudo apt install -y libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
 	# QT5 support
 	sudo apt install -y qtbase5-dev qtchooser qt5-qmake qtbase5-dev-tools
- 
+
  	# In order to support OpenGL, we need a little magic to help
 	# https://devtalk.nvidia.com/default/topic/1007290/jetson-tx2/building-opencv-with-opengl-support-/post/5141945/#5141945
 	cd /usr/local/cuda/include || exit
@@ -163,10 +163,10 @@ configure () {
 		-D OPENCV_EXTRA_MODULES_PATH=${OPENCV_SOURCE_DIR}/opencv_contrib/modules
 		-D OPENCV_GENERATE_PKGCONFIG=YES
 		-D OPENCV_ENABLE_NONFREE=ON
-			
+
 		-D WITH_OPENCL=OFF
 		-D WITH_OPENGL=ON
-		
+
 		-D WITH_CUDA=ON
 		-D CUDA_ARCH_BIN=${CUDA_ARCH_BIN}
 		-D CUDA_ARCH_PTX=${PTX}
@@ -184,18 +184,18 @@ configure () {
 		-D WITH_FFMPEG=ON
 		-D WITH_GSTREAMER=ON
 		-D WITH_GSTREAMER_0_10=OFF
-		
+
 		-D WITH_QT=ON
 		-D BUILD_opencv_python3=ON
 		-D BUILD_opencv_python2=OFF
 		-D BUILD_JAVA=OFF"
-	
+
 	if [ "$PACKAGE_OPENCV" -eq 1 ] ; then
 		CMAKEFLAGS="
 		${CMAKEFLAGS}
 		-D CPACK_BINARY_DEB=ON"
 	fi
-	
+
 	if [ "$TEST_OPENCV" -eq 1 ] ; then
 	    CMAKEFLAGS="
 		    ${CMAKEFLAGS}
@@ -214,7 +214,7 @@ configure () {
 		    -D INSTALL_C_EXAMPLES=OFF
 		    -D INSTALL_PYTHON_EXAMPLES=OFF"
 	fi
-	
+
 	# Create the build directory and start cmake
 	mkdir -p "$OPENCV_SOURCE_DIR"/opencv/build
 	cd "$OPENCV_SOURCE_DIR"/opencv/build || exit
@@ -251,7 +251,7 @@ build_install () {
 			exit 1
 		fi
 	fi
-	
+
 	if [ "$TEST_OPENCV" -eq 1 ] ; then
 		time make test 2>&1 | tee -a test.log
 	fi
@@ -262,7 +262,7 @@ build_install () {
 	else
 	    time sudo make install 2>&1 | tee -a install.log
 	fi
-	
+
 	if [ $? -eq 0 ] ; then
 	   sudo ldconfig -v
 	   echo "OpenCV installed in: $INSTALL_DIR"
@@ -339,7 +339,7 @@ main () {
 	# Iterate through command line inputs
 	while [ "$1" != "" ]; do
 		case $1 in
-			-v | --version )	shift 
+			-v | --version )	shift
 								OPENCV_VERSION=$1
 								;;
 			-s | --sourcedir )	shift
@@ -369,7 +369,7 @@ main () {
 	# Print out the current configuration
 	echo "Build configuration: "
 	echo " - NVIDIA Jetson AGX Orin"
-	echo " - OpenCV version: $OPENCV_VERSION" 
+	echo " - OpenCV version: $OPENCV_VERSION"
 	echo " - Binaries will be installed in: $INSTALL_DIR"
 	echo " - Source code will be located at: $OPENCV_SOURCE_DIR"
 	if [ "$PACKAGE_OPENCV" -eq 0 ] ; then
