@@ -6,7 +6,7 @@ Script to build OpenCV 4.9.0 with CUDA and CUDNN support on the NVIDIA Jetson AG
 
 ## Usage
 
-> usage: ./buildOpenCV.sh [[-s sourcedir ] | [-h]]  
+> usage: `./buildOpenCV.sh [[-s sourcedir ] | [-h]]`  
 >>>-v | --version&ensp;&ensp;&ensp;&ensp;&thinsp;&thinsp;Change the version of OpenCV to install. (default: 4.9.0)  
 >>>-s | --sourcedir&ensp;&thinsp;&ensp;&thinsp;Directory to place the opencv sources (default: /tmp/build_opencv)  
 >>>-i | --installdir&ensp;&ensp;&ensp;&ensp;Directory to install opencv libraries (default: /usr/local)  
