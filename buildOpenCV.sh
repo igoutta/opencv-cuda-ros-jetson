@@ -89,7 +89,9 @@ install_dependencies () {
 	# open-cv has a lot of dependencies, but most can be found in the default
 	# package repository or should already be installed (eg. CUDA).
 	echo "Installing build dependencies."
-	sudo apt-add-repository universe
+	sudo apt update -y
+	sudo apt install -y software-properties-common
+	sudo apt-add-repository -y universe
 	sudo apt update -y
 	
 	# Download dependencies for the desired configuration
@@ -121,7 +123,7 @@ install_dependencies () {
 	# Python 2.7
 	# sudo apt-get install -y python-dev  python-numpy  python-py  python-pytest
 	# Python 3.x
-	sudo apt install -y python3-dev python3-numpy python3-py python3-pytest
+	sudo apt install -y python3-dev python3-numpy python3-pytest
 	# GStreamer support
 	sudo apt install -y libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev 
 	# QT5 support
